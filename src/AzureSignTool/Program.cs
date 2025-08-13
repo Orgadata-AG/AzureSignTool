@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,6 +29,12 @@ namespace AzureSignTool
             if (!OperatingSystem.IsWindows())
             {
                 Console.Error.WriteLine("Azure Sign Tool is only supported on Windows.");
+                return Task.FromResult(E_PLATFORMNOTSUPPORTED);
+            }
+
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10))
+            {
+                Console.Error.WriteLine("Azure Sign Tool requires Windows 10 or later.");
                 return Task.FromResult(E_PLATFORMNOTSUPPORTED);
             }
 
@@ -388,25 +394,9 @@ namespace AzureSignTool
 
         private static bool IsSigned(string filePath)
         {
-            const string CodeSigningOid = "1.3.6.1.5.5.7.3.3";
-
             try
             {
-                using var certificate = X509Certificate.CreateFromSignedFile(filePath);
-                using var certificate2 = new X509Certificate2(certificate);
-
-                foreach (X509Extension ext in certificate2.Extensions)
-                {
-                    if (ext is X509EnhancedKeyUsageExtension eku)
-                    {
-                        if (eku.EnhancedKeyUsages[CodeSigningOid] is not null)
-                        {
-                            return true;
-                        }
-                    }
-                }
-
-                return false;
+                return X509Certificate2.GetCertContentType(filePath) == X509ContentType.Authenticode;
             }
             catch (CryptographicException)
             {
